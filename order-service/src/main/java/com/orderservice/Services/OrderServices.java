@@ -7,5 +7,5 @@ import org.springframework.data.repository.NoRepositoryBean;
 
 @NoRepositoryBean
 public interface OrderServices {
-    Order addOrder(OrderRequest orderRequest);
+    String addOrder(OrderRequest orderRequest);
 }

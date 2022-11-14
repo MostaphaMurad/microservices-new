@@ -28,7 +28,7 @@ public class OrderServicesImp implements OrderServices {
     private final WebClient.Builder webClientBuilder;
 
     @Override
-    public Order addOrder(OrderRequest orderRequest) {
+    public String addOrder(OrderRequest orderRequest) {
         Order order=new Order();
             order.setOrderNumber(UUID.randomUUID().toString());
             List<OrderLineItems>orderLineItemsList=orderRequest.getOrderLineItemsDTOS()
@@ -45,14 +45,14 @@ public class OrderServicesImp implements OrderServices {
                 try{
                     orderRepository.save(order);
                     log.info("order added with id {} ",order.getId());
-                    return order;
+                    return "order Placed Successfully";
                 }
                 catch (Exception e){
                     throw new RuntimeException("error adding order",e);
                 }
             }
             else{
-               return null;
+               return "Failed to order";
             }
 
     }
