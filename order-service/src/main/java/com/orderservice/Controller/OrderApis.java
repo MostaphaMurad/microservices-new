@@ -5,6 +5,7 @@ import com.orderservice.Services.Imp.OrderServicesImp;
 import com.orderservice.dto.OrderRequest;
 import com.orderservice.dto.OrderResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,8 +22,9 @@ public class OrderApis {
     private final OrderServicesImp orderServicesImp;
     @CircuitBreaker(name = "inventory",fallbackMethod = "fallbackMethod")
     @TimeLimiter(name = "inventory")
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST,reason = "service down!!")
     @PostMapping(value = "add-order",consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Retry(name = "inventory")
     public CompletableFuture<String>addOrder(@RequestBody OrderRequest orderRequest){
         return CompletableFuture.supplyAsync(()->orderServicesImp.addOrder(orderRequest));
     }
