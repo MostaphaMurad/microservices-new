@@ -8,10 +8,12 @@ import com.orderservice.dto.OrderLineItemsDTO;
 import com.orderservice.dto.OrderRequest;
 import com.orderservice.dto.OrderResponse;
 import com.orderservice.dto.Response;
+import com.orderservice.event.OrderPlacedEvent;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,7 +31,7 @@ public class OrderServicesImp implements OrderServices {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     private final Tracer tracer;
-
+    private final KafkaTemplate<String, OrderPlacedEvent>kafkaTemplate;
     @Override
     public String addOrder(OrderRequest orderRequest) {
         Order order=new Order();
@@ -49,6 +51,7 @@ public class OrderServicesImp implements OrderServices {
             if(allProductsInStock){
                 try{
                     orderRepository.save(order);
+                    kafkaTemplate.send("notificationTopic",new OrderPlacedEvent(order.getOrderNumber()));
                     log.info("order added with id {} ",order.getId());
                     return "order Placed Successfully";
                 }
