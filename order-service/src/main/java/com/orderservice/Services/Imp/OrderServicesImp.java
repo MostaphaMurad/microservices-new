@@ -10,6 +10,8 @@ import com.orderservice.dto.OrderResponse;
 import com.orderservice.dto.Response;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.sleuth.Span;
+import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class OrderServicesImp implements OrderServices {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final Tracer tracer;
 
     @Override
     public String addOrder(OrderRequest orderRequest) {
@@ -37,9 +40,11 @@ public class OrderServicesImp implements OrderServices {
             order.setOrderLineItemsList(orderLineItemsList);
             List<String>skuCodes=order.getOrderLineItemsList().stream()
                             .map(orderLineItems -> orderLineItems.getSkuCode()).collect(Collectors.toList());
-           Response []inventoryResponse= webClientBuilder.build().get().uri("http://inventory-service/api/v1/inventory/in-stock", uriBuilder ->
+        Span inventoryServiceLookUp = tracer.nextSpan().name("inventoryServiceLookUp");
+        try(Tracer.SpanInScope spanInScope=tracer.withSpan(inventoryServiceLookUp.start())){
+            Response []inventoryResponse= webClientBuilder.build().get().uri("http://inventory-service/api/v1/inventory/in-stock", uriBuilder ->
                             uriBuilder.queryParam("skuCode",skuCodes).build())
-                            .retrieve().bodyToMono(Response[].class).block();
+                    .retrieve().bodyToMono(Response[].class).block();
             boolean allProductsInStock=Arrays.stream(inventoryResponse).allMatch(Response::getIsInStock);
             if(allProductsInStock){
                 try{
@@ -52,9 +57,11 @@ public class OrderServicesImp implements OrderServices {
                 }
             }
             else{
-               return "Failed to order";
+                return "Failed to order";
             }
-
+        }finally {
+            inventoryServiceLookUp.end();
+        }
     }
 
     private OrderLineItems mapToDto(OrderLineItemsDTO orderLineItemsDTO) {
